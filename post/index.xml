@@ -1,0 +1,560 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on Michael Holt</title>
+    <link>http://www.mholt.tech/post/</link>
+    <description>Recent content in Posts on Michael Holt</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Fri, 04 Dec 2015 17:04:01 -0800</lastBuildDate>
+    <atom:link href="http://www.mholt.tech/post/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Getting Started with Puppet</title>
+      <link>http://www.mholt.tech/blog/2015/12/04/getting-started-with-puppet</link>
+      <pubDate>Fri, 04 Dec 2015 17:04:01 -0800</pubDate>
+      
+      <guid>http://www.mholt.tech/blog/2015/12/04/getting-started-with-puppet</guid>
+      <description>
+
+&lt;p&gt;Back at the Church IT Roundtable in October I began sharing about how we have implemented a Mac Management solution using Open Source Tools and I promised to provide tutorials on how to get started.  I&amp;rsquo;ve spent the time rebuilding the Docker Container to automate the setup of a new Puppet Server because of some issues that my original container experiences on occasion.  This post is going to cover the basics of getting Docker &amp;amp; Puppet up and running on a Ubuntu 14.04 server running Docker.  At the end of this post, you&amp;rsquo;ll have a working puppetserver and a mac checking into it.  Future posts will expand on how to use Puppet to configure your mac as well as the other parts of our environment mentioned in the &lt;a href=&#34;http://www.mholt.tech/blog/2015/10/08/our-path-to-mac-management/&#34;&gt;previous post&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&#34;installing-docker:3d4599c341ffdbb5719eb1070b5ded00&#34;&gt;Installing Docker&lt;/h3&gt;
+
+&lt;p&gt;I&amp;rsquo;m going to assume you already have a working Ubuntu 14.04 Server.  If not, I Highly recommend using Linode, which is what we use to run our Management Platform.  You can sign up &lt;a href=&#34;https://www.linode.com/?r=eb7892d4b2b5528c799c9bab969491ae8b02970a&#34;&gt;Here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Our first job after SSH&amp;rsquo;ing into the server is to get Docker installed.  This is a very easy process.&lt;/p&gt;
+
+&lt;p&gt;First lets makes sure we have &lt;code&gt;wget&lt;/code&gt; installed:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;which wget
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;If nothing is returned, we need to install &lt;code&gt;wget&lt;/code&gt;:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo apt-get update
+sudo apt-get install wget
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;And now we can install Docker.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;wget -qO- https://get.docker.com/ | sh
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Enter your password when asked and then you&amp;rsquo;re done.&lt;/p&gt;
+
+&lt;p&gt;If you aren&amp;rsquo;t running as root (which isn&amp;rsquo;t secure anyways so I hope you aren&amp;rsquo;t), you can give a user access to Docker without having to grant sudo and preface all docker commands with sudo.  This can be done by running&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo usermod -aG docker &amp;lt;username&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;clone-the-core-repo:3d4599c341ffdbb5719eb1070b5ded00&#34;&gt;Clone the Core Repo&lt;/h3&gt;
+
+&lt;p&gt;Now before we continue with docker we need to clone the base configuration that our Puppetserver will be using.  I&amp;rsquo;m going to go with the assumption that you are familiar with git.  If this is you&amp;rsquo;re first time there are a lot of tutorials on the internet, personally I like to use a GUI and recommend &lt;a href=&#34;https://www.sourcetreeapp.com/&#34;&gt;SourceTree&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;This is also going to be based on using Bitbucket for storing your configurations privately.  Bitbucket gives you unlimited &lt;em&gt;PRIVATE&lt;/em&gt; repositories for free which I highly recommend doing to keep your configuration data private.  This is also compatible with GitHub as well.  You can get a BitBucket account &lt;a href=&#34;https://bitbucket.org/&#34;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Here&amp;rsquo;s how to get started with your own copy of the Core Repository:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;To start off, go to Bitbucket&amp;rsquo;s website and log in.&lt;/li&gt;
+&lt;li&gt;Go to Repositories -&amp;gt; Import Repository&lt;/li&gt;
+&lt;li&gt;For &lt;strong&gt;URL&lt;/strong&gt;, enter: &lt;a href=&#34;https://github.com/MichaelHoltTech/puppet-core_repo.git&#34;&gt;https://github.com/MichaelHoltTech/puppet-core_repo.git&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;For &lt;strong&gt;Name&lt;/strong&gt;, you may keep the name of the imported repository or change this to anything you want.&lt;/li&gt;
+&lt;li&gt;For &lt;strong&gt;Access Level&lt;/strong&gt;, make sure to check &amp;ldquo;This is a private repository&amp;rdquo;&lt;/li&gt;
+&lt;li&gt;Click &lt;strong&gt;Import Repository&lt;/strong&gt; to import the base repository into your Bitbucket account.  It&amp;rsquo;ll take a moment for the code to import and then you can continue.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&#34;start-setting-up-puppetserver:3d4599c341ffdbb5719eb1070b5ded00&#34;&gt;Start setting up Puppetserver&lt;/h3&gt;
+
+&lt;p&gt;Now we&amp;rsquo;re ready to go back to Docker and start setting up Puppetserver.  This is a very simple process.&lt;/p&gt;
+
+&lt;p&gt;We&amp;rsquo;ll start off with creating what is called a Volume Container.  This will store the SSL Certificates used by Puppet so that the container can be updated as needed without worrying about losing some important configuration.&lt;/p&gt;
+
+&lt;p&gt;On your Ubuntu server, start by running this command. &lt;em&gt;Note: If you are not logged in with root then preface all commands from here on out with sudo&lt;/em&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;docker pull busybox
+docker run -d --name data_puppet \
+  -v /root/.ssh \
+  -v /var/lib/puppet/ssl \
+  busybox
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Now we have to create a file in order for the Puppetserver to know how to get your Core Repository.  If you skip this step you&amp;rsquo;ll run into some issues when we get to restarting the container.  I prefer nano, but you use whatever editor you prefer on the Linux Server.&lt;/p&gt;
+
+&lt;p&gt;To begin, lets create some directories and grant all users inside of the Docker user group access.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo mkdir -p /usr/local/docker/puppetserver
+sudo chgrp -R docker /usr/local/docker
+sudo chmod -R 770 /usr/local/docker
+cd /usr/local/docker/puppetserver
+nano custom.yaml
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Inside of custom.yaml insert the following contents, replacing the repo url in single quotes with repo&amp;rsquo;s SSH URL found by clicking: &amp;hellip; -&amp;gt; Clone -&amp;gt; Change HTTPS to SSH.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;---
+repo_url: &#39;git@github.com:MichaelHoltTech/puppet-core_repo.git&#39;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Now lets go ahead and close and save this file&lt;/p&gt;
+
+&lt;p&gt;Now that we have that out of the way we can get started with the Puppetserver.  Make sure you replace &lt;code&gt;puppet.example.com&lt;/code&gt; with the url/hostname you intend to use for your puppet server.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;docker pull michaelholttech/puppetserver
+docker run -d --name=puppetserver \
+  --volumes-from data_puppet \
+  -v /root/.ssh \
+  -v /var/lib/puppet/ssl \
+  -v /usr/local/docker/puppetserver/custom.yaml:/root/bootstrap/hiera/data/custom.yaml \
+  -e PUPPETSERVER_JAVA_ARGS=&amp;quot;-Xms384m -Xmx384m -XX:MaxPermSize=256m&amp;quot; \
+  -p 8140:8140 \
+  -h puppet.example.com \
+  --restart=&amp;quot;always&amp;quot; \
+  michaelholttech/puppetserver
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;After you have run those commands we need to monitor the logs for some important information that will be provided.  This can be done by running:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;docker logs -f puppetserver
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Once the initial scripts have run you&amp;rsquo;ll see Public Key displayed in the logs.  You need to take this and enter it as a Deployment Key for your Repository.  This can be done by browsing to your repository on the Bitbucket Website, and then going to Setttings -&amp;gt; Deployment Keys -&amp;gt; Add Key.  Copy/Paste the Publickey starting with &lt;code&gt;ssh-rsa&lt;/code&gt; and ending with &lt;code&gt;R10K Deployment Key&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;Now that we&amp;rsquo;ve gotten that done we&amp;rsquo;re ready to let Puppet finish bootstraping itself.  This can be done by copy/pasting the commands after the Publickey in the  logs that were looking at in the last step.  You can also run:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;docker stop puppetserver
+docker start puppetserver
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Now if you watch the logs again you can see puppet preparing itself&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;docker logs -f puppetserver
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This will take several minutes to complete.  When it is done you will see a line saying &lt;code&gt;[p.s.m.master-service] Puppet Server has successfully started and is now ready to handle requests&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;Now that your puppetserver is running there&amp;rsquo;s only one last command to run.  This command is only needed if there isn&amp;rsquo;t already data existing inside of &lt;code&gt;data_puppet&lt;/code&gt;.  This command is also set up to automatically run ever 30 minutes inside of the container.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;docker exec -it puppetserver puppet agent -t
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;set-up-you-re-first-client:3d4599c341ffdbb5719eb1070b5ded00&#34;&gt;Set up you&amp;rsquo;re first client!&lt;/h3&gt;
+
+&lt;p&gt;Whew we&amp;rsquo;re almost there.  Not much longer until you will have your first client checking into your brand new Puppetserver.&lt;/p&gt;
+
+&lt;p&gt;Let&amp;rsquo;s start with a fresh Mac OS environment, be it a VM or spare computer.  We&amp;rsquo;re going to have to start off by installing two packages on the machine&amp;hellip; Puppet &amp;amp; Facter.&lt;/p&gt;
+
+&lt;p&gt;Puppet v3.8.4 can be downloaded &lt;a href=&#34;https://downloads.puppetlabs.com/mac/puppet-3.8.4.dmg&#34;&gt;&lt;strong&gt;HERE&lt;/strong&gt;&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Facter v2.4.4 can be downloaded &lt;a href=&#34;https://downloads.puppetlabs.com/mac/facter-2.4.4.dmg&#34;&gt;&lt;strong&gt;HERE&lt;/strong&gt;&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Once downloaded go ahead and install these onto your test machine.&lt;/p&gt;
+
+&lt;p&gt;At this point all that&amp;rsquo;s left is to get your machine configured.  This is extremly simple and can be done with running one command in terminal, replacing &lt;code&gt;puppet.example.com&lt;/code&gt; with your puppetserver&amp;rsquo;s URL.  &lt;em&gt;If you don&amp;rsquo;t have a DNS record for it, make sure you add a manual entry inside of &lt;code&gt;/etc/hosts&lt;/code&gt; on your test machine!&lt;/em&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo puppet agent -t --certname $(ioreg -l | awk &#39;/IOPlatformSerialNumber/ { split($0, line, &amp;quot;\&amp;quot;&amp;quot;); printf(&amp;quot;%s\n&amp;quot;, line[4]); }&#39; | tr &#39;[:upper:]&#39; &#39;[:lower:]&#39;) --waitforcert 20 --server puppet.example.com
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;You now have your first machine up and running on Puppet! Congratulations!&lt;/p&gt;
+
+&lt;p&gt;There&amp;rsquo;s plenty of information online if you want to begin playing with some configuration settings inside of the Core Repository.&lt;/p&gt;
+
+&lt;p&gt;We&amp;rsquo;ll go over this more in a future post, but to configure a role we need to create a fact on the local machine.  This can be done by running:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo mkdir -p /etc/facter/facts.d
+sudo nano /etc/facter/facts.d/computer_role.yaml
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Paste the following inside of &lt;code&gt;computer_role.yaml&lt;/code&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;---
+computer_role: &amp;quot;test&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Since the machine is now configured with puppet, you can trigger puppet by running a much simpler command:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo puppet agent -t
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;If you have added the computer_role fact, you should get an output similar to the following when you run &lt;code&gt;puppet agent -t&lt;/code&gt;:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Loading facts
+Info: Caching catalog for c02n5heug3qj
+Info: Applying configuration version &#39;1449305286&#39;
+Notice: Test Role
+Notice: /Stage[main]/Roles::Test/Notify[Test Role]/message: defined &#39;message&#39; as &#39;Test Role&#39;
+Notice: Default Role
+Notice: /Stage[main]/Roles::Default/Notify[Default Role]/message: defined &#39;message&#39; as &#39;Default Role&#39;
+Notice: Common Profile
+Notice: /Stage[main]/Profiles::Common/Notify[Common Profile]/message: defined &#39;message&#39; as &#39;Common Profile&#39;
+Notice: Test Profile
+Notice: /Stage[main]/Profiles::Test/Notify[Test Profile]/message: defined &#39;message&#39; as &#39;Test Profile&#39;
+Notice: Finished catalog run in 13.84 seconds
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;additional-notes:3d4599c341ffdbb5719eb1070b5ded00&#34;&gt;Additional Notes&lt;/h3&gt;
+
+&lt;p&gt;Whenever you make a change to your Core Repo, you also need to manually tell your Puppetserver to pull in the changes.  This can be done by running this on the server:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;docker exec -it puppetserver r10k deploy environment -pv
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Yay! We&amp;rsquo;ve made it to the end and we now have a functional Puppetserver! If you&amp;rsquo;ve made it this far give yourself a pat on the back, it took me much longer to get up and running with Puppet when I first started.&lt;/p&gt;
+
+&lt;p&gt;Here&amp;rsquo;s a few quick notes:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;This is a new Docker image and could have some bugs and issues.  I&amp;rsquo;m relying on the community to help identify these issues.&lt;/li&gt;
+&lt;li&gt;I&amp;rsquo;m not an expert at this, I just started using puppet a few months ago myself.  If you see areas that could be improved feel free to submit a pull request.
+
+&lt;ol&gt;
+&lt;li&gt;The Puppetserver code can be found &lt;a href=&#34;https://github.com/MichaelHoltTech/puppetserver&#34;&gt;&lt;strong&gt;here&lt;/strong&gt;&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;The Core Repo code can be found &lt;a href=&#34;https://github.com/MichaelHoltTech/puppet-core_repo/&#34;&gt;&lt;strong&gt;here&lt;/strong&gt;&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;The Base Image code can be found &lt;a href=&#34;https://github.com/MichaelHoltTech/baseimage&#34;&gt;&lt;strong&gt;here&lt;/strong&gt;&lt;/a&gt;.  It is based off of work done by phusion, located &lt;a href=&#34;https://github.com/phusion/baseimage-docker&#34;&gt;&lt;strong&gt;here&lt;/strong&gt;&lt;/a&gt;.&lt;/li&gt;
+&lt;/ol&gt;&lt;/li&gt;
+&lt;li&gt;I&amp;rsquo;m currently not running this Image in Production.  I plan on moving over to it after the Christmas Holidays as I continue to document our Management Platform.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Stay Tuned for the next post! No promises but i&amp;rsquo;ll see if I can at least get one more post up documenting how to begin programming some configuration options.  If I don&amp;rsquo;t get to it, I&amp;rsquo;ll definitely have time in January! (I&amp;rsquo;ll do my best not to keep you waiting 2 months this time)&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Our path to Mac Management</title>
+      <link>http://www.mholt.tech/blog/2015/10/08/our-path-to-mac-management</link>
+      <pubDate>Thu, 08 Oct 2015 19:48:15 -0800</pubDate>
+      
+      <guid>http://www.mholt.tech/blog/2015/10/08/our-path-to-mac-management</guid>
+      <description>
+
+&lt;h3 id=&#34;where-we-started:79346f77ddef6538ddb2b438f8d959f4&#34;&gt;Where we Started&lt;/h3&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;“In the beginning God created…” the Mac… “and it was good”&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Ok maybe I went a little far in that one.  I came on staff at Real Life Church in 2012 and at that time we were mostly a PC shop with the exception being Pastors exclusively having a Mac (With Local Admin Access and no admin account for IT).  Over the next 2 years we realized that we got significantly more support requests on our PCs than for our Macs. We were running on an aging SBS 2008 server that was maxed out on licensing and we were continuing to grow.  After numerous conversations with my Director and leadership the decision was clear that we needed to make the transition to a 100% Mac shop in our church.&lt;/p&gt;
+
+&lt;p&gt;This decision was based on the need to purchase new hardware and spend hundreds of man hours (as the solo IT Admin) in building out a new server infrastructure to manage the windows Machines with no guarantee that it would cut down on the ongoing support needs.  The direction was clear at the beginning of 2014 that we would be transitioning to the Macs as soon as we had the capital to spend on them.&lt;/p&gt;
+
+&lt;p&gt;Knowing this, I began to research and address ways to manage software, patches, and support the new influx of Macs.&lt;/p&gt;
+
+&lt;p&gt;###Introducing the Munki&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;https://lh3.googleusercontent.com/-SZsDtJV44Ic/T8ytQjvo24I/AAAAAAAAAlc/A4b9DjdBWGk/s640/blogger-image-1072467874.jpg&#34; alt=&#34;alt text&#34; title=&#34;Oh No, Monkeys on a Mac! - Image courtesy of http://nikiwallacedesign.blogspot.com/2012/06/think-first-design-later.html&#34; /&gt;
+&lt;/p&gt;
+
+&lt;p&gt;Ok so I’m not actually talking about a real Monkey here.  Munki is a set of tools that can be used to manage software installs on OS X Client Machines.  It was developed by Gregg Neagle (@gregneagle) at Walt Disney Animation Studios and was open sourced for anyone to use and contribute to.  I had heard about Munki a couple of times in discussions with Churches and other people about how to manage a Mac and finally decided to start looking into it.  In addition to do managed and optional installs as well as updates of 3rd party software, it is also capable of installing Apple Software Updates.&lt;/p&gt;
+
+&lt;p&gt;###Our Requirements for Staff Macs&lt;/p&gt;
+
+&lt;p&gt;One of the first things we decided on was some of the requirements and restrictions that we wanted in place on the Mac.  Every organization is different but this is where we settled.&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;No end user will be an administrator on their Machine&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Only approved software can be installed and can be found inside Munki&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;No App Store apps allowed
+One of the continuous debates is Admin vs No Admin regardless of platform (Mac vs PC).  We decided on the no admin approach because we did not want our staff being able to install unapproved software or changing system settings that could negatively affect their Machine.&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;###Challenges&lt;/p&gt;
+
+&lt;p&gt;I spent about 10 months developing our Munki infrastructure and learning how it worked.  Part of the reason for taking this long is when first evaluating it at the beginning of the year there was already progress being made on version 2 that turned Munki into a replica of the Apple App Store in terms of layout and usability.&lt;/p&gt;
+
+&lt;p&gt;The primary opposition we faced was a number of employees responded with: “I’ve always used a PC and have never touched a Mac, how am I supposed to get my job done?”  We encouraged our users to keep an open mind and we spent time with them after migrating their data showing them the basics of how to use a Mac and spending 15-20 minutes showing them the basics on how to open documents and applications.  Within a few months I was hearing from everyone that they “loved” their Macs and are glad to have them.&lt;/p&gt;
+
+&lt;p&gt;###Issues with Non-Admins and Munki&lt;/p&gt;
+
+&lt;p&gt;After a few months in we started finding a few issues with our configuration and stance of no Local Admin access.  This included:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;Users could not change their energy saver preferences&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Users could not install home printers&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Printers would “pause” when running out of paper or toner, and paper jams. Admin credentials were required to resume printing&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Management of software updates became cumbersome and users were requesting software that would have been available in the Mac App Store&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;###Our Next Steps&lt;/p&gt;
+
+&lt;p&gt;We have been using Munki for a year now and when re-evaluating our setup and options we discovered that we were spending significantly more than we had anticipated by running our system on Amazon EC2.  We also wanted to address some underlying issues with configuration management, printers, and opening up the App Store.  This led us to make some new changes which I will highlight here and detail further in future blog posts.&lt;/p&gt;
+
+&lt;p&gt;We decided to go with the following systems to comprise our Mac Management Solution:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://github.com/google/simian&#34;&gt;&lt;strong&gt;Simian&lt;/strong&gt;&lt;/a&gt;, a backend solution to power the Munki client, hosted on Google App Engine and developed by Google MacOps, along with customizations to Munki to create a secure connection between the client and server.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://puppetlabs.com/&#34;&gt;&lt;strong&gt;Puppet&lt;/strong&gt;&lt;/a&gt;, a configuration management system that allows you to define the state of your Machines.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://github.com/Munkireport/Munkireport-php&#34;&gt;&lt;strong&gt;Munkireport-php&lt;/strong&gt;&lt;/a&gt;, a powerful system reporting utility that provides detailed system information on your Macs&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://github.com/grahamgilbert/Crypt&#34;&gt;&lt;strong&gt;Crypt&lt;/strong&gt;&lt;/a&gt;, a Filevault Key Escrow solution built by Graham Gilbert for recording filevault recovery keys&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://github.com/grahamgilbert/Macnamer&#34;&gt;&lt;strong&gt;Macnamer&lt;/strong&gt;&lt;/a&gt;, a web app and Mac script that runs on your Mac to force your Machine to follow a naming convention with an automatically generated number suffix. Another solution built by Graham Gilbert&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://github.com/salopensource/sal&#34;&gt;&lt;strong&gt;Sal&lt;/strong&gt;&lt;/a&gt;, a Multi-Tennant reporting dashboard similar to Munkireport that provides another way of viewing system information.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://github.com/autopkg/autopkg&#34;&gt;&lt;strong&gt;Autopkg&lt;/strong&gt;&lt;/a&gt;, automates the download and manifest creation of software for import into simian.  This is not fully automated but allows me to simply copy paste into Simian to provide updates.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://github.com/lindegroup/autopkgr&#34;&gt;&lt;strong&gt;Autopkgr&lt;/strong&gt;&lt;/a&gt;, ties into Autopkg and checks for software updates every night and sends an email alert when software updates are installed&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://www.screenconnect.com/&#34;&gt;&lt;strong&gt;Screenconnect&lt;/strong&gt;&lt;/a&gt;, an Unattended Remote Support software for Mac/PC/Linux.  We use this to be able to remotely support our Users.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Not Yet Implemented&lt;/strong&gt; - &lt;a href=&#34;https://github.com/grahamgilbert/imagr&#34;&gt;&lt;strong&gt;Imagr&lt;/strong&gt;&lt;/a&gt;, an open source replacement to DeployStudio for workstation imaging and thin-provisioning.&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Everything except Simian runs inside a single server on Digital Ocean inside of Docker Containers.  I plan on publishing additional information on my setup and instructions on how to create this setup in the near future.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Pi Cam Matrix v2</title>
+      <link>http://www.mholt.tech/blog/2015/08/29/pi-cam-matrix-v2</link>
+      <pubDate>Sat, 29 Aug 2015 09:50:39 -0800</pubDate>
+      
+      <guid>http://www.mholt.tech/blog/2015/08/29/pi-cam-matrix-v2</guid>
+      <description>
+
+&lt;p&gt;After a few days in production I discovered that over time the Pi&amp;rsquo;s would lose connection to the RTSP feeds.  The only two ways to resolve this were to reboot the Pi or SSH into the Pi.  Because of this I started back at the beginning and was able to develop another way of running this matrix that would automatically reload the RTSP feed if it was lost.  The initial Pi Setup instructions are identical to my last post, &lt;a href=&#34;http://www.mholt.tech/blog/2015/08/21/raspberry-pi-camera-matrix/&#34;&gt;Raspberry Pi Camera Matrix&lt;/a&gt;, the differences come in with setting up the new code base.&lt;/p&gt;
+
+&lt;p&gt;For those that are interested in how to make this happen here&amp;rsquo;s the instructions and code:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;What you&amp;rsquo;ll need:&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Raspberry Pi2 (I got the Canakit Raspberry Pi 2 - Complete Starter Kit off of Amazon, comes with everything you need for this project)&lt;/li&gt;
+&lt;li&gt;Unifi NVR Software running the most recent stable release&lt;/li&gt;
+&lt;li&gt;HDTV or Computer Monitor capable of 1080p&lt;/li&gt;
+&lt;li&gt;MicroSD to SD Card Adapter (Optional, only needed if you have to re-install raspbian)&lt;/li&gt;
+&lt;li&gt;Keyboard for initial setup&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&#34;instructions:91c7beec33ba5bbd46af45cee2048ce3&#34;&gt;Instructions&lt;/h3&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Put together and connect you PI2&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Refer to the quick-start guide that is in the Box in order to get started with your Raspberry Pi and install Raspbian using the pre-loaded NOOBS installer on the SD Card&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Configure Raspbian&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Once you arrive at the Raspi-Config screen you should change the default password (Option 2), set a hostname (Option 8 - A2), set Memory split for video to 512 (Option 8 - A3), and overclock (Option 7 - Pi2).&lt;/p&gt;
+
+&lt;p&gt;After this is done click finish and you will be dropped to the command line. I have found the overclocking to help with the videos loading initially, otherwise i&amp;rsquo;ve found it to take a minute or two for cameras to play smoothly.&lt;/p&gt;
+
+&lt;p&gt;For more information on raspi-config, see &lt;a href=&#34;https://www.raspberrypi.org/documentation/configuration/raspi-config.md&#34;&gt;https://www.raspberrypi.org/documentation/configuration/raspi-config.md&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Get the code&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Clone the PiCamMatrix repo into /home/pi using&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;git clone https://github.com/MichaelHoltTech/PiCamMatrix.git&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;Note: If you wish to use a different path, you need to &lt;code&gt;Script=&lt;/code&gt; in every file to point to the path that the scripts reside.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Edit the files for your configuration&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;cd into PiCamMatrix by entering:&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;cd ~/PiCamMatrix&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;edit cams.txt by typing:&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;nano cams.txt&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;replace &lt;rtsp_url_using_ip&gt; with the RTSP url&amp;rsquo;s for your cameras (I recommend using the Low Quality to save bandwidth and using an IP Address instead of FQDN to ensure no issues arrise.)  This url can be found in the NVR under RTSP Service when editing a camera&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;exit nano by hitting ctrl + x then entering y to save and enter to keep the filename&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Configure a Static IP address in &lt;code&gt;/etc/network/interfaces&lt;/code&gt;.  I highly recommend wired instead of wireless.  If you need some instructions on setting a static IP this tutorial is very easy to follow: &lt;a href=&#34;http://www.modmypi.com/blog/tutorial-how-to-give-your-raspberry-pi-a-static-ip-address&#34;&gt;http://www.modmypi.com/blog/tutorial-how-to-give-your-raspberry-pi-a-static-ip-address&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Create SymLinks to init.d&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;While still inside of ~/PiCamMatrix run this in order to link the init.d scripts to /etc/init.d:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;pre&gt;&lt;code&gt;  sudo ln -s /home/pi/PiCamMatrix/init.d/camtopleft /etc/init.d/camtopleft
+  sudo ln -s /home/pi/PiCamMatrix/init.d/camtopright /etc/init.d/camtopright
+  sudo ln -s /home/pi/PiCamMatrix/init.d/cambottomleft /etc/init.d/cambottomleft
+  sudo ln -s /home/pi/PiCamMatrix/init.d/cambottomright /etc/init.d/cambottomright
+&lt;/code&gt;&lt;/pre&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Enable the scripts to automatically start at boot&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Run these commands while still inside ~/PiCamMatrix in order for the cameras feeds to automatically load at boot:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo update-rc.d camtopleft defaults
+sudo update-rc.d camtopright defaults
+sudo update-rc.d cambottomleft defaults
+sudo update-rc.d cambottomright defaults
+&lt;/code&gt;&lt;/pre&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Reboot the Pi&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;At this point all of your configuration is done.  All that&amp;rsquo;s left to do is reboot the Pi and let the cameras load up.  Enter this command to tell the Pi to reboot:&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;sudo reboot&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&#34;troubleshooting:91c7beec33ba5bbd46af45cee2048ce3&#34;&gt;Troubleshooting&lt;/h3&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Display Issues:&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;If you&amp;rsquo;re having strange display issues, such as banding, flickering, or the display just shuts off, it&amp;rsquo;s somewhat expected for the Raspberry Pi.  To troubleshoot, you&amp;rsquo;re going to have to make some changes to the /boot/config.txt file in order to force certain modes and resolutions.   The included config.txt works for my setup but your milage may vary depending on your TV/Monitor.&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Starting with a Fresh Raspbian Install:&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This is where you are going to need that option MicroSD to SD Card adapter.  I&amp;rsquo;m not going to cover how to do that because the instructions are easily found on the internet.  Easiest ones to follow are at &lt;a href=&#34;https://www.raspberrypi.org/documentation/installation/noobs.md&#34;&gt;https://www.raspberrypi.org/documentation/installation/noobs.md&lt;/a&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Changing RTSP URL&amp;rsquo;s:&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This easiest way to update your RTSP URL&amp;rsquo;s is to edit the files that were copied from the git folder onto your pi.  This can be done by running:&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;nano ~/cams.txt&lt;/code&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Raspberry Pi Camera Matrix</title>
+      <link>http://www.mholt.tech/blog/2015/08/21/raspberry-pi-camera-matrix</link>
+      <pubDate>Fri, 21 Aug 2015 14:46:39 -0800</pubDate>
+      
+      <guid>http://www.mholt.tech/blog/2015/08/21/raspberry-pi-camera-matrix</guid>
+      <description>
+
+&lt;h2 id=&#34;i-have-posted-version-2-of-this-script-here-http-www-mholt-tech-blog-2015-08-29-pi-cam-matrix-v2:d0904f9017f523d8bddb9dd66c65f39e&#34;&gt;I have posted version 2 of this script &lt;a href=&#34;http://www.mholt.tech/blog/2015/08/29/pi-cam-matrix-v2/&#34;&gt;HERE&lt;/a&gt;&lt;/h2&gt;
+
+&lt;p&gt;Over the last few months we&amp;rsquo;ve been upgrading our Security Cameras, replacing a 10 year old vitek system with the Ubiquiti Unifi Video system.  We just finished installing the last of these Cameras and that included the need to find a new solution for our Children&amp;rsquo;s Cameras to be displayed onto two TV&amp;rsquo;s.  I found a Forum Post on the Ubiquiti Community that documented one person&amp;rsquo;s script to display a &lt;a href=&#34;http://community.ubnt.com/t5/UniFi-Video/Tutorial-Raspberry-Pi-4-Cam-Matrix-Viewer-Appliance/m-p/1253309#U1253309&#34;&gt;2x2 Camera Matrix on a Raspberry Pi&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;So I went ahead and order 2x Raspberry Pi&amp;rsquo;s to power both of these displays and thought &amp;ldquo;Perfect, someone else has done the leg work all I have to do is plug in the RTSP URL&amp;rsquo;s and presto&amp;rdquo;.  Unfortunatly, I ran into some issues with screen causing the video to jump a few seconds instead of playing smoothly.  I also couldn&amp;rsquo;t get the code working as an init.d so I took a different approach using rc.local.&lt;/p&gt;
+
+&lt;p&gt;For those that are interested in how to make this happen here&amp;rsquo;s the instructions and code:&lt;/p&gt;
+
+&lt;p&gt;** What you&amp;rsquo;ll need:**&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Raspberry Pi2 (I got the Canakit Raspberry Pi 2 - Complete Starter Kit off of Amazon, comes with everything you need for this project)&lt;/li&gt;
+&lt;li&gt;Unifi NVR Software running the most recent stable release&lt;/li&gt;
+&lt;li&gt;HDTV or Computer Monitor capable of 1080p&lt;/li&gt;
+&lt;li&gt;MicroSD to SD Card Adapter (Optional, only needed if you have to re-install raspbian)&lt;/li&gt;
+&lt;li&gt;Keyboard for initial setup&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&#34;instructions:d0904f9017f523d8bddb9dd66c65f39e&#34;&gt;Instructions&lt;/h3&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Put together and connect you PI2&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Refer to the quick-start guide that is in the Box in order to get started with your Raspberry Pi and install Raspbian using the pre-loaded NOOBS installer on the SD Card&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Configure Raspbian&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Once you arrive at the Raspi-Config screen you should change the default password (Option 2) and set a hostname (Option 8 - A2).&lt;/p&gt;
+
+&lt;p&gt;After this is done click finish and you will be dropped to the command line. Overclocking is also possible, but not required or recommended for what we are doing.&lt;/p&gt;
+
+&lt;p&gt;For more information on raspi-config, see &lt;a href=&#34;https://www.raspberrypi.org/documentation/configuration/raspi-config.md&#34;&gt;https://www.raspberrypi.org/documentation/configuration/raspi-config.md&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Get the code&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;You can get the code from GitHub by entering:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git clone https://gist.github.com/dde9de96b6a4d72b7f58.git raspicams
+&lt;/code&gt;&lt;/pre&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Edit the files for your configuration&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;cd into raspicams by entering:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt; cd ~/raspicams
+&lt;/code&gt;&lt;/pre&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;edit cams.sh by typing:&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;nano cams.sh&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;replace &lt;rtsp_url_using_ip&gt; with the RTSP url&amp;rsquo;s for your cameras (I recommend using the Low Quality to save bandwidth and using an IP Address instead of FQDN to ensure no issues arrise.)  This url can be found in the NVR under RTSP Service when editing a camera&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;exit nano by hitting ctrl + x then entering y to save and enter to keep the filename&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;edit network-interfaces and set static IP address configuration for eth0 (Optional but Highly Recommended)&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Copy the files into place&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;While still inside of ~/raspicams run this in order to copy all of these files into place:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;sudo chown root:root boot-config.txt network-interfaces rc.local cmdline.txt &amp;amp; sudo chmod +x * &amp;amp; sudo cp boot-config.txt /boot/config.txt &amp;amp; sudo cp cmdline.txt /boot/cmdline.txt &amp;amp; sudo cp rc.local /etc/rc.local &amp;amp; sudo cp cams.sh ~/cams.sh&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;If you have also configured a static IP in network-interfaces run this command to copy that file into place:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;sudo cp network-interfaces /etc/network/interfaces&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Reboot the Pi&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;At this point all of your configuration is done.  All that&amp;rsquo;s left to do is reboot the Pi and let the cameras load up.  Enter this command to tell the Pi to reboot:&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;sudo reboot&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&#34;troubleshooting:d0904f9017f523d8bddb9dd66c65f39e&#34;&gt;Troubleshooting&lt;/h3&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Display Issues:&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;If you&amp;rsquo;re having strange display issues, such as banding, flickering, or the display just shuts off, it&amp;rsquo;s somewhat expected for the Raspberry Pi.  To troubleshoot, you&amp;rsquo;re going to have to make some changes to the /boot/config.txt file in order to force certain modes and resolutions.   The included config.txt works for my setup but your milage may vary depending on your TV/Monitor.&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Starting with a Fresh Raspbian Install:&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This is where you are going to need that option MicroSD to SD Card adapter.  I&amp;rsquo;m not going to cover how to do that because the instructions are easily found on the internet.  Easiest ones to follow are at &lt;a href=&#34;https://www.raspberrypi.org/documentation/installation/noobs.md&#34;&gt;https://www.raspberrypi.org/documentation/installation/noobs.md&lt;/a&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Changing RTSP URL&amp;rsquo;s:&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This easiest way to update your RTSP URL&amp;rsquo;s is to edit the files that were copied from the git folder onto your pi.  This can be done by running:&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;nano ~/cams.sh&lt;/code&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Welcome to my Blog!</title>
+      <link>http://www.mholt.tech/blog/2015/08/10/welcome-to-my-blog</link>
+      <pubDate>Mon, 10 Aug 2015 21:02:17 -0800</pubDate>
+      
+      <guid>http://www.mholt.tech/blog/2015/08/10/welcome-to-my-blog</guid>
+      <description>&lt;p&gt;Hey Guys! Thanks for checking out my blog.&lt;/p&gt;
+
+&lt;p&gt;I don&amp;rsquo;t have much here yet but I soon hope to start posting some of my setup and code soon to use Munki, PuppetServer, Simain, Sal, MunkiReport, Crypt, MacNamer, and Imagr to set up a full fledged automated mac management configuration and reporting solution.&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Unifi Video on Michael Holt</title>
+    <link>http://www.mholt.tech/categories/unifi-video/</link>
+    <description>Recent content in Unifi Video on Michael Holt</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 29 Aug 2015 09:50:39 -0800</lastBuildDate>
+    <atom:link href="http://www.mholt.tech/categories/unifi-video/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Pi Cam Matrix v2</title>
+      <link>http://www.mholt.tech/blog/2015/08/29/pi-cam-matrix-v2</link>
+      <pubDate>Sat, 29 Aug 2015 09:50:39 -0800</pubDate>
+      
+      <guid>http://www.mholt.tech/blog/2015/08/29/pi-cam-matrix-v2</guid>
+      <description>
+
+&lt;p&gt;After a few days in production I discovered that over time the Pi&amp;rsquo;s would lose connection to the RTSP feeds.  The only two ways to resolve this were to reboot the Pi or SSH into the Pi.  Because of this I started back at the beginning and was able to develop another way of running this matrix that would automatically reload the RTSP feed if it was lost.  The initial Pi Setup instructions are identical to my last post, &lt;a href=&#34;http://www.mholt.tech/blog/2015/08/21/raspberry-pi-camera-matrix/&#34;&gt;Raspberry Pi Camera Matrix&lt;/a&gt;, the differences come in with setting up the new code base.&lt;/p&gt;
+
+&lt;p&gt;For those that are interested in how to make this happen here&amp;rsquo;s the instructions and code:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;What you&amp;rsquo;ll need:&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Raspberry Pi2 (I got the Canakit Raspberry Pi 2 - Complete Starter Kit off of Amazon, comes with everything you need for this project)&lt;/li&gt;
+&lt;li&gt;Unifi NVR Software running the most recent stable release&lt;/li&gt;
+&lt;li&gt;HDTV or Computer Monitor capable of 1080p&lt;/li&gt;
+&lt;li&gt;MicroSD to SD Card Adapter (Optional, only needed if you have to re-install raspbian)&lt;/li&gt;
+&lt;li&gt;Keyboard for initial setup&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&#34;instructions:91c7beec33ba5bbd46af45cee2048ce3&#34;&gt;Instructions&lt;/h3&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Put together and connect you PI2&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Refer to the quick-start guide that is in the Box in order to get started with your Raspberry Pi and install Raspbian using the pre-loaded NOOBS installer on the SD Card&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Configure Raspbian&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Once you arrive at the Raspi-Config screen you should change the default password (Option 2), set a hostname (Option 8 - A2), set Memory split for video to 512 (Option 8 - A3), and overclock (Option 7 - Pi2).&lt;/p&gt;
+
+&lt;p&gt;After this is done click finish and you will be dropped to the command line. I have found the overclocking to help with the videos loading initially, otherwise i&amp;rsquo;ve found it to take a minute or two for cameras to play smoothly.&lt;/p&gt;
+
+&lt;p&gt;For more information on raspi-config, see &lt;a href=&#34;https://www.raspberrypi.org/documentation/configuration/raspi-config.md&#34;&gt;https://www.raspberrypi.org/documentation/configuration/raspi-config.md&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Get the code&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Clone the PiCamMatrix repo into /home/pi using&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;git clone https://github.com/MichaelHoltTech/PiCamMatrix.git&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;Note: If you wish to use a different path, you need to &lt;code&gt;Script=&lt;/code&gt; in every file to point to the path that the scripts reside.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Edit the files for your configuration&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;cd into PiCamMatrix by entering:&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;cd ~/PiCamMatrix&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;edit cams.txt by typing:&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;nano cams.txt&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;replace &lt;rtsp_url_using_ip&gt; with the RTSP url&amp;rsquo;s for your cameras (I recommend using the Low Quality to save bandwidth and using an IP Address instead of FQDN to ensure no issues arrise.)  This url can be found in the NVR under RTSP Service when editing a camera&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;exit nano by hitting ctrl + x then entering y to save and enter to keep the filename&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;Configure a Static IP address in &lt;code&gt;/etc/network/interfaces&lt;/code&gt;.  I highly recommend wired instead of wireless.  If you need some instructions on setting a static IP this tutorial is very easy to follow: &lt;a href=&#34;http://www.modmypi.com/blog/tutorial-how-to-give-your-raspberry-pi-a-static-ip-address&#34;&gt;http://www.modmypi.com/blog/tutorial-how-to-give-your-raspberry-pi-a-static-ip-address&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Create SymLinks to init.d&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;While still inside of ~/PiCamMatrix run this in order to link the init.d scripts to /etc/init.d:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;pre&gt;&lt;code&gt;  sudo ln -s /home/pi/PiCamMatrix/init.d/camtopleft /etc/init.d/camtopleft
+  sudo ln -s /home/pi/PiCamMatrix/init.d/camtopright /etc/init.d/camtopright
+  sudo ln -s /home/pi/PiCamMatrix/init.d/cambottomleft /etc/init.d/cambottomleft
+  sudo ln -s /home/pi/PiCamMatrix/init.d/cambottomright /etc/init.d/cambottomright
+&lt;/code&gt;&lt;/pre&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Enable the scripts to automatically start at boot&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Run these commands while still inside ~/PiCamMatrix in order for the cameras feeds to automatically load at boot:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo update-rc.d camtopleft defaults
+sudo update-rc.d camtopright defaults
+sudo update-rc.d cambottomleft defaults
+sudo update-rc.d cambottomright defaults
+&lt;/code&gt;&lt;/pre&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Reboot the Pi&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;At this point all of your configuration is done.  All that&amp;rsquo;s left to do is reboot the Pi and let the cameras load up.  Enter this command to tell the Pi to reboot:&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;sudo reboot&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&#34;troubleshooting:91c7beec33ba5bbd46af45cee2048ce3&#34;&gt;Troubleshooting&lt;/h3&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Display Issues:&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;If you&amp;rsquo;re having strange display issues, such as banding, flickering, or the display just shuts off, it&amp;rsquo;s somewhat expected for the Raspberry Pi.  To troubleshoot, you&amp;rsquo;re going to have to make some changes to the /boot/config.txt file in order to force certain modes and resolutions.   The included config.txt works for my setup but your milage may vary depending on your TV/Monitor.&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Starting with a Fresh Raspbian Install:&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This is where you are going to need that option MicroSD to SD Card adapter.  I&amp;rsquo;m not going to cover how to do that because the instructions are easily found on the internet.  Easiest ones to follow are at &lt;a href=&#34;https://www.raspberrypi.org/documentation/installation/noobs.md&#34;&gt;https://www.raspberrypi.org/documentation/installation/noobs.md&lt;/a&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Changing RTSP URL&amp;rsquo;s:&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This easiest way to update your RTSP URL&amp;rsquo;s is to edit the files that were copied from the git folder onto your pi.  This can be done by running:&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;nano ~/cams.txt&lt;/code&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Raspberry Pi Camera Matrix</title>
+      <link>http://www.mholt.tech/blog/2015/08/21/raspberry-pi-camera-matrix</link>
+      <pubDate>Fri, 21 Aug 2015 14:46:39 -0800</pubDate>
+      
+      <guid>http://www.mholt.tech/blog/2015/08/21/raspberry-pi-camera-matrix</guid>
+      <description>
+
+&lt;h2 id=&#34;i-have-posted-version-2-of-this-script-here-http-www-mholt-tech-blog-2015-08-29-pi-cam-matrix-v2:d0904f9017f523d8bddb9dd66c65f39e&#34;&gt;I have posted version 2 of this script &lt;a href=&#34;http://www.mholt.tech/blog/2015/08/29/pi-cam-matrix-v2/&#34;&gt;HERE&lt;/a&gt;&lt;/h2&gt;
+
+&lt;p&gt;Over the last few months we&amp;rsquo;ve been upgrading our Security Cameras, replacing a 10 year old vitek system with the Ubiquiti Unifi Video system.  We just finished installing the last of these Cameras and that included the need to find a new solution for our Children&amp;rsquo;s Cameras to be displayed onto two TV&amp;rsquo;s.  I found a Forum Post on the Ubiquiti Community that documented one person&amp;rsquo;s script to display a &lt;a href=&#34;http://community.ubnt.com/t5/UniFi-Video/Tutorial-Raspberry-Pi-4-Cam-Matrix-Viewer-Appliance/m-p/1253309#U1253309&#34;&gt;2x2 Camera Matrix on a Raspberry Pi&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;So I went ahead and order 2x Raspberry Pi&amp;rsquo;s to power both of these displays and thought &amp;ldquo;Perfect, someone else has done the leg work all I have to do is plug in the RTSP URL&amp;rsquo;s and presto&amp;rdquo;.  Unfortunatly, I ran into some issues with screen causing the video to jump a few seconds instead of playing smoothly.  I also couldn&amp;rsquo;t get the code working as an init.d so I took a different approach using rc.local.&lt;/p&gt;
+
+&lt;p&gt;For those that are interested in how to make this happen here&amp;rsquo;s the instructions and code:&lt;/p&gt;
+
+&lt;p&gt;** What you&amp;rsquo;ll need:**&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Raspberry Pi2 (I got the Canakit Raspberry Pi 2 - Complete Starter Kit off of Amazon, comes with everything you need for this project)&lt;/li&gt;
+&lt;li&gt;Unifi NVR Software running the most recent stable release&lt;/li&gt;
+&lt;li&gt;HDTV or Computer Monitor capable of 1080p&lt;/li&gt;
+&lt;li&gt;MicroSD to SD Card Adapter (Optional, only needed if you have to re-install raspbian)&lt;/li&gt;
+&lt;li&gt;Keyboard for initial setup&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&#34;instructions:d0904f9017f523d8bddb9dd66c65f39e&#34;&gt;Instructions&lt;/h3&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Put together and connect you PI2&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Refer to the quick-start guide that is in the Box in order to get started with your Raspberry Pi and install Raspbian using the pre-loaded NOOBS installer on the SD Card&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Configure Raspbian&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Once you arrive at the Raspi-Config screen you should change the default password (Option 2) and set a hostname (Option 8 - A2).&lt;/p&gt;
+
+&lt;p&gt;After this is done click finish and you will be dropped to the command line. Overclocking is also possible, but not required or recommended for what we are doing.&lt;/p&gt;
+
+&lt;p&gt;For more information on raspi-config, see &lt;a href=&#34;https://www.raspberrypi.org/documentation/configuration/raspi-config.md&#34;&gt;https://www.raspberrypi.org/documentation/configuration/raspi-config.md&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Get the code&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;You can get the code from GitHub by entering:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git clone https://gist.github.com/dde9de96b6a4d72b7f58.git raspicams
+&lt;/code&gt;&lt;/pre&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Edit the files for your configuration&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;cd into raspicams by entering:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt; cd ~/raspicams
+&lt;/code&gt;&lt;/pre&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;edit cams.sh by typing:&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;nano cams.sh&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;replace &lt;rtsp_url_using_ip&gt; with the RTSP url&amp;rsquo;s for your cameras (I recommend using the Low Quality to save bandwidth and using an IP Address instead of FQDN to ensure no issues arrise.)  This url can be found in the NVR under RTSP Service when editing a camera&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;exit nano by hitting ctrl + x then entering y to save and enter to keep the filename&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;edit network-interfaces and set static IP address configuration for eth0 (Optional but Highly Recommended)&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Copy the files into place&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;While still inside of ~/raspicams run this in order to copy all of these files into place:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;sudo chown root:root boot-config.txt network-interfaces rc.local cmdline.txt &amp;amp; sudo chmod +x * &amp;amp; sudo cp boot-config.txt /boot/config.txt &amp;amp; sudo cp cmdline.txt /boot/cmdline.txt &amp;amp; sudo cp rc.local /etc/rc.local &amp;amp; sudo cp cams.sh ~/cams.sh&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;If you have also configured a static IP in network-interfaces run this command to copy that file into place:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;sudo cp network-interfaces /etc/network/interfaces&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Reboot the Pi&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;At this point all of your configuration is done.  All that&amp;rsquo;s left to do is reboot the Pi and let the cameras load up.  Enter this command to tell the Pi to reboot:&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;sudo reboot&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&#34;troubleshooting:d0904f9017f523d8bddb9dd66c65f39e&#34;&gt;Troubleshooting&lt;/h3&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Display Issues:&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;If you&amp;rsquo;re having strange display issues, such as banding, flickering, or the display just shuts off, it&amp;rsquo;s somewhat expected for the Raspberry Pi.  To troubleshoot, you&amp;rsquo;re going to have to make some changes to the /boot/config.txt file in order to force certain modes and resolutions.   The included config.txt works for my setup but your milage may vary depending on your TV/Monitor.&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Starting with a Fresh Raspbian Install:&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This is where you are going to need that option MicroSD to SD Card adapter.  I&amp;rsquo;m not going to cover how to do that because the instructions are easily found on the internet.  Easiest ones to follow are at &lt;a href=&#34;https://www.raspberrypi.org/documentation/installation/noobs.md&#34;&gt;https://www.raspberrypi.org/documentation/installation/noobs.md&lt;/a&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Changing RTSP URL&amp;rsquo;s:&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This easiest way to update your RTSP URL&amp;rsquo;s is to edit the files that were copied from the git folder onto your pi.  This can be done by running:&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;nano ~/cams.sh&lt;/code&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

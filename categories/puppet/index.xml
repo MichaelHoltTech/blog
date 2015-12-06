@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Puppet on Michael Holt</title>
+    <link>http://www.mholt.tech/categories/puppet/</link>
+    <description>Recent content in Puppet on Michael Holt</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Fri, 04 Dec 2015 17:04:01 -0800</lastBuildDate>
+    <atom:link href="http://www.mholt.tech/categories/puppet/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Getting Started with Puppet</title>
+      <link>http://www.mholt.tech/blog/2015/12/04/getting-started-with-puppet</link>
+      <pubDate>Fri, 04 Dec 2015 17:04:01 -0800</pubDate>
+      
+      <guid>http://www.mholt.tech/blog/2015/12/04/getting-started-with-puppet</guid>
+      <description>
+
+&lt;p&gt;Back at the Church IT Roundtable in October I began sharing about how we have implemented a Mac Management solution using Open Source Tools and I promised to provide tutorials on how to get started.  I&amp;rsquo;ve spent the time rebuilding the Docker Container to automate the setup of a new Puppet Server because of some issues that my original container experiences on occasion.  This post is going to cover the basics of getting Docker &amp;amp; Puppet up and running on a Ubuntu 14.04 server running Docker.  At the end of this post, you&amp;rsquo;ll have a working puppetserver and a mac checking into it.  Future posts will expand on how to use Puppet to configure your mac as well as the other parts of our environment mentioned in the &lt;a href=&#34;http://www.mholt.tech/blog/2015/10/08/our-path-to-mac-management/&#34;&gt;previous post&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&#34;installing-docker:3d4599c341ffdbb5719eb1070b5ded00&#34;&gt;Installing Docker&lt;/h3&gt;
+
+&lt;p&gt;I&amp;rsquo;m going to assume you already have a working Ubuntu 14.04 Server.  If not, I Highly recommend using Linode, which is what we use to run our Management Platform.  You can sign up &lt;a href=&#34;https://www.linode.com/?r=eb7892d4b2b5528c799c9bab969491ae8b02970a&#34;&gt;Here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Our first job after SSH&amp;rsquo;ing into the server is to get Docker installed.  This is a very easy process.&lt;/p&gt;
+
+&lt;p&gt;First lets makes sure we have &lt;code&gt;wget&lt;/code&gt; installed:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;which wget
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;If nothing is returned, we need to install &lt;code&gt;wget&lt;/code&gt;:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo apt-get update
+sudo apt-get install wget
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;And now we can install Docker.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;wget -qO- https://get.docker.com/ | sh
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Enter your password when asked and then you&amp;rsquo;re done.&lt;/p&gt;
+
+&lt;p&gt;If you aren&amp;rsquo;t running as root (which isn&amp;rsquo;t secure anyways so I hope you aren&amp;rsquo;t), you can give a user access to Docker without having to grant sudo and preface all docker commands with sudo.  This can be done by running&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo usermod -aG docker &amp;lt;username&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;clone-the-core-repo:3d4599c341ffdbb5719eb1070b5ded00&#34;&gt;Clone the Core Repo&lt;/h3&gt;
+
+&lt;p&gt;Now before we continue with docker we need to clone the base configuration that our Puppetserver will be using.  I&amp;rsquo;m going to go with the assumption that you are familiar with git.  If this is you&amp;rsquo;re first time there are a lot of tutorials on the internet, personally I like to use a GUI and recommend &lt;a href=&#34;https://www.sourcetreeapp.com/&#34;&gt;SourceTree&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;This is also going to be based on using Bitbucket for storing your configurations privately.  Bitbucket gives you unlimited &lt;em&gt;PRIVATE&lt;/em&gt; repositories for free which I highly recommend doing to keep your configuration data private.  This is also compatible with GitHub as well.  You can get a BitBucket account &lt;a href=&#34;https://bitbucket.org/&#34;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Here&amp;rsquo;s how to get started with your own copy of the Core Repository:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;To start off, go to Bitbucket&amp;rsquo;s website and log in.&lt;/li&gt;
+&lt;li&gt;Go to Repositories -&amp;gt; Import Repository&lt;/li&gt;
+&lt;li&gt;For &lt;strong&gt;URL&lt;/strong&gt;, enter: &lt;a href=&#34;https://github.com/MichaelHoltTech/puppet-core_repo.git&#34;&gt;https://github.com/MichaelHoltTech/puppet-core_repo.git&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;For &lt;strong&gt;Name&lt;/strong&gt;, you may keep the name of the imported repository or change this to anything you want.&lt;/li&gt;
+&lt;li&gt;For &lt;strong&gt;Access Level&lt;/strong&gt;, make sure to check &amp;ldquo;This is a private repository&amp;rdquo;&lt;/li&gt;
+&lt;li&gt;Click &lt;strong&gt;Import Repository&lt;/strong&gt; to import the base repository into your Bitbucket account.  It&amp;rsquo;ll take a moment for the code to import and then you can continue.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&#34;start-setting-up-puppetserver:3d4599c341ffdbb5719eb1070b5ded00&#34;&gt;Start setting up Puppetserver&lt;/h3&gt;
+
+&lt;p&gt;Now we&amp;rsquo;re ready to go back to Docker and start setting up Puppetserver.  This is a very simple process.&lt;/p&gt;
+
+&lt;p&gt;We&amp;rsquo;ll start off with creating what is called a Volume Container.  This will store the SSL Certificates used by Puppet so that the container can be updated as needed without worrying about losing some important configuration.&lt;/p&gt;
+
+&lt;p&gt;On your Ubuntu server, start by running this command. &lt;em&gt;Note: If you are not logged in with root then preface all commands from here on out with sudo&lt;/em&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;docker pull busybox
+docker run -d --name data_puppet \
+  -v /root/.ssh \
+  -v /var/lib/puppet/ssl \
+  busybox
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Now we have to create a file in order for the Puppetserver to know how to get your Core Repository.  If you skip this step you&amp;rsquo;ll run into some issues when we get to restarting the container.  I prefer nano, but you use whatever editor you prefer on the Linux Server.&lt;/p&gt;
+
+&lt;p&gt;To begin, lets create some directories and grant all users inside of the Docker user group access.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo mkdir -p /usr/local/docker/puppetserver
+sudo chgrp -R docker /usr/local/docker
+sudo chmod -R 770 /usr/local/docker
+cd /usr/local/docker/puppetserver
+nano custom.yaml
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Inside of custom.yaml insert the following contents, replacing the repo url in single quotes with repo&amp;rsquo;s SSH URL found by clicking: &amp;hellip; -&amp;gt; Clone -&amp;gt; Change HTTPS to SSH.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;---
+repo_url: &#39;git@github.com:MichaelHoltTech/puppet-core_repo.git&#39;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Now lets go ahead and close and save this file&lt;/p&gt;
+
+&lt;p&gt;Now that we have that out of the way we can get started with the Puppetserver.  Make sure you replace &lt;code&gt;puppet.example.com&lt;/code&gt; with the url/hostname you intend to use for your puppet server.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;docker pull michaelholttech/puppetserver
+docker run -d --name=puppetserver \
+  --volumes-from data_puppet \
+  -v /root/.ssh \
+  -v /var/lib/puppet/ssl \
+  -v /usr/local/docker/puppetserver/custom.yaml:/root/bootstrap/hiera/data/custom.yaml \
+  -e PUPPETSERVER_JAVA_ARGS=&amp;quot;-Xms384m -Xmx384m -XX:MaxPermSize=256m&amp;quot; \
+  -p 8140:8140 \
+  -h puppet.example.com \
+  --restart=&amp;quot;always&amp;quot; \
+  michaelholttech/puppetserver
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;After you have run those commands we need to monitor the logs for some important information that will be provided.  This can be done by running:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;docker logs -f puppetserver
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Once the initial scripts have run you&amp;rsquo;ll see Public Key displayed in the logs.  You need to take this and enter it as a Deployment Key for your Repository.  This can be done by browsing to your repository on the Bitbucket Website, and then going to Setttings -&amp;gt; Deployment Keys -&amp;gt; Add Key.  Copy/Paste the Publickey starting with &lt;code&gt;ssh-rsa&lt;/code&gt; and ending with &lt;code&gt;R10K Deployment Key&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;Now that we&amp;rsquo;ve gotten that done we&amp;rsquo;re ready to let Puppet finish bootstraping itself.  This can be done by copy/pasting the commands after the Publickey in the  logs that were looking at in the last step.  You can also run:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;docker stop puppetserver
+docker start puppetserver
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Now if you watch the logs again you can see puppet preparing itself&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;docker logs -f puppetserver
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This will take several minutes to complete.  When it is done you will see a line saying &lt;code&gt;[p.s.m.master-service] Puppet Server has successfully started and is now ready to handle requests&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;Now that your puppetserver is running there&amp;rsquo;s only one last command to run.  This command is only needed if there isn&amp;rsquo;t already data existing inside of &lt;code&gt;data_puppet&lt;/code&gt;.  This command is also set up to automatically run ever 30 minutes inside of the container.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;docker exec -it puppetserver puppet agent -t
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;set-up-you-re-first-client:3d4599c341ffdbb5719eb1070b5ded00&#34;&gt;Set up you&amp;rsquo;re first client!&lt;/h3&gt;
+
+&lt;p&gt;Whew we&amp;rsquo;re almost there.  Not much longer until you will have your first client checking into your brand new Puppetserver.&lt;/p&gt;
+
+&lt;p&gt;Let&amp;rsquo;s start with a fresh Mac OS environment, be it a VM or spare computer.  We&amp;rsquo;re going to have to start off by installing two packages on the machine&amp;hellip; Puppet &amp;amp; Facter.&lt;/p&gt;
+
+&lt;p&gt;Puppet v3.8.4 can be downloaded &lt;a href=&#34;https://downloads.puppetlabs.com/mac/puppet-3.8.4.dmg&#34;&gt;&lt;strong&gt;HERE&lt;/strong&gt;&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Facter v2.4.4 can be downloaded &lt;a href=&#34;https://downloads.puppetlabs.com/mac/facter-2.4.4.dmg&#34;&gt;&lt;strong&gt;HERE&lt;/strong&gt;&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Once downloaded go ahead and install these onto your test machine.&lt;/p&gt;
+
+&lt;p&gt;At this point all that&amp;rsquo;s left is to get your machine configured.  This is extremly simple and can be done with running one command in terminal, replacing &lt;code&gt;puppet.example.com&lt;/code&gt; with your puppetserver&amp;rsquo;s URL.  &lt;em&gt;If you don&amp;rsquo;t have a DNS record for it, make sure you add a manual entry inside of &lt;code&gt;/etc/hosts&lt;/code&gt; on your test machine!&lt;/em&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo puppet agent -t --certname $(ioreg -l | awk &#39;/IOPlatformSerialNumber/ { split($0, line, &amp;quot;\&amp;quot;&amp;quot;); printf(&amp;quot;%s\n&amp;quot;, line[4]); }&#39; | tr &#39;[:upper:]&#39; &#39;[:lower:]&#39;) --waitforcert 20 --server puppet.example.com
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;You now have your first machine up and running on Puppet! Congratulations!&lt;/p&gt;
+
+&lt;p&gt;There&amp;rsquo;s plenty of information online if you want to begin playing with some configuration settings inside of the Core Repository.&lt;/p&gt;
+
+&lt;p&gt;We&amp;rsquo;ll go over this more in a future post, but to configure a role we need to create a fact on the local machine.  This can be done by running:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo mkdir -p /etc/facter/facts.d
+sudo nano /etc/facter/facts.d/computer_role.yaml
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Paste the following inside of &lt;code&gt;computer_role.yaml&lt;/code&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;---
+computer_role: &amp;quot;test&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Since the machine is now configured with puppet, you can trigger puppet by running a much simpler command:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo puppet agent -t
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;If you have added the computer_role fact, you should get an output similar to the following when you run &lt;code&gt;puppet agent -t&lt;/code&gt;:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;Info: Retrieving pluginfacts
+Info: Retrieving plugin
+Info: Loading facts
+Info: Caching catalog for c02n5heug3qj
+Info: Applying configuration version &#39;1449305286&#39;
+Notice: Test Role
+Notice: /Stage[main]/Roles::Test/Notify[Test Role]/message: defined &#39;message&#39; as &#39;Test Role&#39;
+Notice: Default Role
+Notice: /Stage[main]/Roles::Default/Notify[Default Role]/message: defined &#39;message&#39; as &#39;Default Role&#39;
+Notice: Common Profile
+Notice: /Stage[main]/Profiles::Common/Notify[Common Profile]/message: defined &#39;message&#39; as &#39;Common Profile&#39;
+Notice: Test Profile
+Notice: /Stage[main]/Profiles::Test/Notify[Test Profile]/message: defined &#39;message&#39; as &#39;Test Profile&#39;
+Notice: Finished catalog run in 13.84 seconds
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;additional-notes:3d4599c341ffdbb5719eb1070b5ded00&#34;&gt;Additional Notes&lt;/h3&gt;
+
+&lt;p&gt;Whenever you make a change to your Core Repo, you also need to manually tell your Puppetserver to pull in the changes.  This can be done by running this on the server:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;docker exec -it puppetserver r10k deploy environment -pv
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Yay! We&amp;rsquo;ve made it to the end and we now have a functional Puppetserver! If you&amp;rsquo;ve made it this far give yourself a pat on the back, it took me much longer to get up and running with Puppet when I first started.&lt;/p&gt;
+
+&lt;p&gt;Here&amp;rsquo;s a few quick notes:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;This is a new Docker image and could have some bugs and issues.  I&amp;rsquo;m relying on the community to help identify these issues.&lt;/li&gt;
+&lt;li&gt;I&amp;rsquo;m not an expert at this, I just started using puppet a few months ago myself.  If you see areas that could be improved feel free to submit a pull request.
+
+&lt;ol&gt;
+&lt;li&gt;The Puppetserver code can be found &lt;a href=&#34;https://github.com/MichaelHoltTech/puppetserver&#34;&gt;&lt;strong&gt;here&lt;/strong&gt;&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;The Core Repo code can be found &lt;a href=&#34;https://github.com/MichaelHoltTech/puppet-core_repo/&#34;&gt;&lt;strong&gt;here&lt;/strong&gt;&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;The Base Image code can be found &lt;a href=&#34;https://github.com/MichaelHoltTech/baseimage&#34;&gt;&lt;strong&gt;here&lt;/strong&gt;&lt;/a&gt;.  It is based off of work done by phusion, located &lt;a href=&#34;https://github.com/phusion/baseimage-docker&#34;&gt;&lt;strong&gt;here&lt;/strong&gt;&lt;/a&gt;.&lt;/li&gt;
+&lt;/ol&gt;&lt;/li&gt;
+&lt;li&gt;I&amp;rsquo;m currently not running this Image in Production.  I plan on moving over to it after the Christmas Holidays as I continue to document our Management Platform.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Stay Tuned for the next post! No promises but i&amp;rsquo;ll see if I can at least get one more post up documenting how to begin programming some configuration options.  If I don&amp;rsquo;t get to it, I&amp;rsquo;ll definitely have time in January! (I&amp;rsquo;ll do my best not to keep you waiting 2 months this time)&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>
